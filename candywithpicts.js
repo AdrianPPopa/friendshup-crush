@@ -1,3 +1,4 @@
+// Get canvas element and context
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 
@@ -19,19 +20,20 @@ const TILE_IMAGES = [
 // Load the tile images
 const images = [];
 let imagesLoaded = 0;
+const totalImages = TILE_IMAGES.length + 1; // +1 for the background image
+
+function checkAllImagesLoaded() {
+    imagesLoaded++;
+    if (imagesLoaded === totalImages) {
+        createGrid();
+        drawGrid();
+        showStartPopup();
+    }
+}
 TILE_IMAGES.forEach(src => {
     const img = new Image();
     img.src = src;
-    img.onload = () => {
-        imagesLoaded++;
-        if (imagesLoaded === TILE_IMAGES.length) {
-            backgroundImage.onload = () => {
-                createGrid();
-                drawGrid();
-                showStartPopup(); // Show start pop-up when the game is ready
-            };
-        }
-    };
+    img.onload = checkAllImagesLoaded;
     img.onerror = (err) => {
         console.error("Error loading image: ", src, err);
     };
@@ -135,77 +137,72 @@ function checkGameStatus() {
 
 // Handle tile clicks
 canvas.addEventListener('click', (event) => {
-    if (isAnimating) return;  // Prevent clicking during animation
+    if (isAnimating) return;
 
-    const col = Math.floor((event.offsetX - offsetX) / TILE_SIZE);  // Adjust for offset
-    const row = Math.floor((event.offsetY - offsetY) / TILE_SIZE);  // Adjust for offset
+    const col = Math.floor((event.offsetX - offsetX) / TILE_SIZE);
+    const row = Math.floor((event.offsetY - offsetY) / TILE_SIZE);
 
-    // Ensure the clicked tile is valid
     if (row < 0 || row >= GRID_HEIGHT || col < 0 || col >= GRID_WIDTH) {
         return;
     }
 
-    const tileType = grid[row][col];  // Get the tile type at the clicked position
-    if (tileType === null) return;  // Skip if there's no tile at the clicked position
+    const tileType = grid[row][col];
+    if (tileType === null) return;
 
-    const matchingTiles = findMatchingTiles(row, col, tileType, []);  // Find matching tiles
+    const matchingTiles = findMatchingTiles(row, col, tileType, []);
 
     if (matchingTiles.length >= 3) {
-        score += matchingTiles.length * 10;  // Increase score based on matched tiles
-        moves++;  // Increment move counter
-        popSound.play();  // Play pop sound
+        score += matchingTiles.length * 10;
+        moves++;
+        popSound.play();
 
-        // Animate matching tiles
         animateClick(matchingTiles);
-
-        setTimeout(() => {
-            // After animation, remove tiles and drop new ones
-            removeTiles(matchingTiles);
-            dropTiles();
-            drawGrid();  // Redraw the grid with updated tiles
-            checkGameStatus();  // Check win/lose status
-        }, 500);  // Delay before removing tiles and dropping new ones
     }
 });
-
 // Function to reset the game state
 function resetGame() {
-    // Reset the game variables
     score = 0;
     moves = 0;
-    createGrid();  // Recreate the grid with new tiles
-    drawGrid();  // Redraw the grid
-    backgroundMusic.play(); // Start playing background music again
+    createGrid();
+    drawGrid();
+    backgroundMusic.play();
 }
 
-// Your existing game code continues here...
-
-
-
+// Animation for tile click
 function animateClick(tiles) {
     isAnimating = true;
-    const scaleFactor = 1.3;  // Scale factor for pop animation
+    const duration = 300; // Animation duration in milliseconds
+    const startTime = performance.now();
 
-    tiles.forEach(tile => {
-        const x = offsetX + tile.col * TILE_SIZE;
-        const y = offsetY + tile.row * TILE_SIZE;
+    function animate(currentTime) {
+        const elapsedTime = currentTime - startTime;
+        const progress = Math.min(elapsedTime / duration, 1);
 
-        // Pop animation (scale up)
-        ctx.save();
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
-        ctx.translate(x + TILE_SIZE / 2, y + TILE_SIZE / 2);
-        ctx.scale(scaleFactor, scaleFactor);
-        ctx.fillRect(-TILE_SIZE / 2, -TILE_SIZE / 2, TILE_SIZE, TILE_SIZE);
-        ctx.restore();
-    });
+        // Scale tiles based on progress
+        tiles.forEach(tile => {
+            const x = offsetX + tile.col * TILE_SIZE;
+            const y = offsetY + tile.row * TILE_SIZE;
+            const scale = 1 + 0.3 * Math.sin(progress * Math.PI); // Bounce effect
 
-    // After animation ends, remove tiles and update grid
-    setTimeout(() => {
-        isAnimating = false;
-        removeTiles(tiles);  // Remove matched tiles
-        dropTiles();  // Drop new tiles into empty spaces
-        drawGrid();  // Redraw the grid with new tiles
-    }, 300);  // Duration of animation
+            ctx.save();
+            ctx.translate(x + TILE_SIZE / 2, y + TILE_SIZE / 2);
+            ctx.scale(scale, scale);
+            drawTile(tile.row, tile.col, grid[tile.row][tile.col]);
+            ctx.restore();
+        });
+
+        if (progress < 1) {
+            requestAnimationFrame(animate);
+        } else {
+            isAnimating = false;
+            removeTiles(tiles);
+            dropTiles();
+            drawGrid();
+            checkGameStatus();
+        }
+    }
+
+    requestAnimationFrame(animate);
 }
 
 function removeTiles(tiles) {
@@ -214,7 +211,6 @@ function removeTiles(tiles) {
     });
 }
 
-// Find matching tiles for the clicked tile
 // Find matching tiles for the clicked tile (up, down, left, right)
 function findMatchingTiles(row, col, tileType, visited) {
     // Prevent out-of-bounds or checking already visited tiles
@@ -237,34 +233,30 @@ function findMatchingTiles(row, col, tileType, visited) {
     return visited;
 }
 
-// Remove matched tiles
-function removeTiles(tiles) {
-    tiles.forEach(tile => {
-        grid[tile.row][tile.col] = null;  // Set the tile to null (empty)
-    });
-}
-
-// Drop tiles
+// Drop tiles and fill empty spaces with new tiles
 function dropTiles() {
     for (let col = 0; col < GRID_WIDTH; col++) {
-        let emptyRow = GRID_HEIGHT - 1;
+        let emptySpaces = 0;
 
         for (let row = GRID_HEIGHT - 1; row >= 0; row--) {
-            if (grid[row][col] !== null) {
-                grid[emptyRow][col] = grid[row][col];
-                if (emptyRow !== row) grid[row][col] = null;
-                emptyRow--;
+            if (grid[row][col] === null) {
+                emptySpaces++;
+            } else if (emptySpaces > 0) {
+                grid[row + emptySpaces][col] = grid[row][col];
+                grid[row][col] = null;
             }
         }
 
-        for (let row = emptyRow; row >= 0; row--) {
-            grid[row][col] = Math.floor(Math.random() * TILE_IMAGES.length);  // Random tile
+        for (let row = 0; row < emptySpaces; row++) {
+            grid[row][col] = Math.floor(Math.random() * TILE_IMAGES.length);
         }
     }
 }
 
-backgroundImage.onload = function () {
-    createGrid();
+backgroundImage.onload = checkAllImagesLoaded;
+
+window.addEventListener('resize', () => {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight - SCORE_BAR_HEIGHT;
     drawGrid();
-    backgroundMusic.play(); // Start playing background music when the game starts
-  };
+});
