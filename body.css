@@ -1,0 +1,25 @@
+/* Make sure the body or main container is full-screen and uses flexbox for centering */
+body {
+    margin: 0;
+    height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background-image: url('candies.jpg'); /* Optional, add a background image */
+    background-size: cover;
+    background-position: center;
+  }
+  
+  /* Ensure canvas container is centered and takes up appropriate space */
+  .game-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    position: relative;
+  }
+  
+  /* Canvas itself */
+  #gameCanvas {
+    border: 1px solid #000; /* Optional: border for visibility */
+  }
+  
