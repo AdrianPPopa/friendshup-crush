@@ -137,26 +137,26 @@ function checkGameStatus() {
 
 // Handle tile clicks
 canvas.addEventListener('click', (event) => {
-    if (isAnimating) return;
+    if (isAnimating) return; // Prevent clicks during animation
 
     const col = Math.floor((event.offsetX - offsetX) / TILE_SIZE);
     const row = Math.floor((event.offsetY - offsetY) / TILE_SIZE);
 
     if (row < 0 || row >= GRID_HEIGHT || col < 0 || col >= GRID_WIDTH) {
-        return;
+        return; // Ignore clicks outside the grid
     }
 
     const tileType = grid[row][col];
-    if (tileType === null) return;
+    if (tileType === null) return; // Ignore empty tiles
 
     const matchingTiles = findMatchingTiles(row, col, tileType, []);
 
     if (matchingTiles.length >= 3) {
-        score += matchingTiles.length * 10;
-        moves++;
-        popSound.play();
+        score += matchingTiles.length * 10; // Update score
+        moves++; // Increment move counter
+        popSound.play(); // Play sound
 
-        animateClick(matchingTiles);
+        animateClick(matchingTiles); // Start the animation
     }
 });
 // Function to reset the game state
@@ -178,6 +178,10 @@ function animateClick(tiles) {
         const elapsedTime = currentTime - startTime;
         const progress = Math.min(elapsedTime / duration, 1);
 
+        // Clear the canvas and redraw the grid
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        drawGrid();
+
         // Scale tiles based on progress
         tiles.forEach(tile => {
             const x = offsetX + tile.col * TILE_SIZE;
@@ -195,10 +199,10 @@ function animateClick(tiles) {
             requestAnimationFrame(animate);
         } else {
             isAnimating = false;
-            removeTiles(tiles);
-            dropTiles();
-            drawGrid();
-            checkGameStatus();
+            removeTiles(tiles); // Remove tiles after animation
+            dropTiles(); // Drop new tiles
+            drawGrid(); // Redraw the grid
+            checkGameStatus(); // Check if the game is won or lost
         }
     }
 
@@ -207,7 +211,7 @@ function animateClick(tiles) {
 
 function removeTiles(tiles) {
     tiles.forEach(tile => {
-        grid[tile.row][tile.col] = null;  // Set the tile to null (empty)
+        grid[tile.row][tile.col] = null; // Set the tile to null (empty)
     });
 }
 
@@ -254,9 +258,3 @@ function dropTiles() {
 }
 
 backgroundImage.onload = checkAllImagesLoaded;
-
-window.addEventListener('resize', () => {
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight - SCORE_BAR_HEIGHT;
-    drawGrid();
-});
